@@ -1,0 +1,118 @@
+---
+title: Understanding Ethereum delegatecall
+description: How delegatecall uses the caller's storage, why storage layout matters, and the risks to audit.
+publishedAt: 2026-11-08
+tags:
+  - Ethereum
+  - Solidity
+  - Smart contracts
+---
+
+# Understanding Ethereum delegatecall
+
+`delegatecall` is one of Solidity's most useful and most dangerous low-level operations. It lets a contract run code from another contract while keeping the caller's storage and execution context.
+
+## The four call types
+
+All four methods let one contract call a function in another contract. The key differences are whose storage is used and what `msg.sender` becomes inside the called code.
+
+| Type | Whose code runs | Whose storage changes | `msg.sender` inside the callee |
+| --- | --- | --- | --- |
+| `call` | Callee's | Callee's | The calling contract |
+| `staticcall` | Callee's | None; it is read-only and reverts on state change | The calling contract |
+| `callcode` (deprecated) | Callee's | Caller's | The calling contract |
+| `delegatecall` | Callee's | Caller's | Original sender, preserved |
+
+## How delegatecall works
+
+Imagine contract B delegatecalls contract A. Contract A's code executes in contract B's context, as though that code belonged to B.
+
+- Writes go to B's storage; A's storage is never changed.
+- `address(this)` remains B's address.
+- `msg.sender` remains the account or contract that called B.
+- `msg.value` is unchanged.
+
+This means A's code can read and change every storage slot in B. That is both the power and the danger of `delegatecall`.
+
+In proxy terminology, B is usually the caller or proxy, and A is the logic or implementation contract.
+
+## The storage layout rule
+
+Storage variables are matched by slot position, not variable name. Slot `0` in A's code writes to slot `0` in B, regardless of what B calls its variable.
+
+For this reason, the two contracts must declare compatible variables in exactly the same order and with the same types.
+
+## A storage collision bug
+
+Here is a simple logic contract:
+
+```solidity
+contract A {
+    uint256 public num; // slot 0
+
+    function setNum(uint256 _num) public {
+        num = _num;
+    }
+
+    function getNum() public view returns (uint256) {
+        return num;
+    }
+}
+```
+
+This proxy has the wrong layout:
+
+```solidity
+contract B {
+    address public A_addr; // slot 0: collides with A.num
+    uint256 public num;    // slot 1
+    // ...
+}
+```
+
+Calling `setNum` through `delegatecall` writes to slot `0`, so it overwrites `A_addr` rather than B's `num`. The logic contract's `getNum()` still returns its old value because A's own storage did not change.
+
+## The fix
+
+Place matching variables in matching slots:
+
+```solidity
+contract B {
+    uint256 public num;    // slot 0: matches A.num
+    address public A_addr; // slot 1
+
+    function set_A_Addr(address A) public {
+        A_addr = A;
+    }
+
+    function delegateit(uint256 _num) public {
+        (bool ok, ) = A_addr.delegatecall(
+            abi.encodeWithSignature("setNum(uint256)", _num)
+        );
+        require(ok, "delegatecall failed");
+    }
+}
+```
+
+Now `delegateit(5)` sets `B.num` to `5`. Check it with `B.num()`, not `A.getNum()`.
+
+## Why delegatecall is used
+
+### Upgradeable proxies
+
+A proxy stores the application's state and uses `delegatecall` to execute a separate logic contract. Updating the logic-contract address can upgrade behavior while keeping the existing state.
+
+### Libraries
+
+Libraries can provide shared code that operates on the calling contract's storage.
+
+## Security risks and audit checklist
+
+- **Untrusted target:** delegatecalling an address controlled by an attacker lets them overwrite storage, potentially including the owner.
+- **No-code target:** `delegatecall` can return `true` even when the target address has no code. Verify that the target is a contract.
+- **Layout mismatch:** incompatible storage layouts corrupt state and are a common proxy-upgrade bug. EIP-1967 uses fixed storage slots to reduce collision risks.
+- **Initialization vulnerabilities:** the 2017 Parity multisig wallet incident showed how a delegatecall fallback could expose a library initialization function and allow an attacker to take ownership.
+
+## Takeaway
+
+`delegatecall` runs external code with your contract's storage and identity. Use it only with trusted, verified implementations, preserve storage compatibility across upgrades, and protect initialization paths carefully.

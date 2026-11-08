@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+
+.font-helvetica {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f7f4ed;
+  color: #1c1917;
+  background-image: radial-gradient(#d6d3d1 0.65px, transparent 0.65px);
+  background-size: 14px 14px;
+}
+
+.prose-post {
+  color: #44403c;
+  font-size: 1.0625rem;
+  line-height: 1.85;
+}
+
+.prose-post > * + * {
+  margin-top: 1.5rem;
+}
+
+.prose-post h2,
+.prose-post h3 {
+  color: #1c1917;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.prose-post h2 { font-size: 1.9rem; margin-top: 3.25rem; }
+.prose-post h3 { font-size: 1.35rem; margin-top: 2.25rem; }
+.prose-post ul { list-style: disc; padding-left: 1.4rem; }
+.prose-post li + li { margin-top: 0.55rem; }
+.prose-post a { color: #1c1917; text-decoration: underline; text-underline-offset: 3px; }
+.prose-post code { border-radius: 0.2rem; background: #e7e5e4; padding: 0.12rem 0.32rem; font-size: 0.88em; }
+.prose-post pre { overflow-x: auto; border: 1px solid #292524; background: #1c1917; padding: 1.25rem; color: #f5f5f4; }
+.prose-post pre code { background: transparent; padding: 0; color: inherit; }
+.prose-post table { width: 100%; border-collapse: collapse; font-size: 0.9rem; line-height: 1.5; }
+.prose-post th, .prose-post td { border: 1px solid #d6d3d1; padding: 0.75rem; text-align: left; vertical-align: top; }
+.prose-post th { background: #e7e5e4; color: #1c1917; }
+
+::selection {
+  background: #ffcf5a;
+  color: #1c1917;
+}
